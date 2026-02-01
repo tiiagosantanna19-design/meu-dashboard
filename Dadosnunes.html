@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta Audit v7.6 - Premium Strategist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .glass-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
+        .insight-box { min-height: 180px; font-size: 13px; line-height: 1.6; }
+        .input-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 12px; font-size: 13px; outline: none; width: 100%; transition: all 0.2s; }
+        .input-box:focus { border-color: #4f46e5; ring: 2px ring-indigo-100; }
+        .label-mini { text-transform: uppercase; font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.1em; display: block; margin-bottom: 6px; }
+        .progress-bar { height: 16px; border-radius: 30px; background: #f1f5f9; overflow: hidden; border: 1px solid #e2e8f0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #10b981); transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .accent-border { border-top: 4px solid #4f46e5; }
+        @media print { .no-print { display: none; } body { background: white; padding: 0; } .glass-card { border: 1px solid #eee; box-shadow: none; break-inside: avoid; } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-6xl mx-auto">
+    <div class="glass-card p-6 mb-8 no-print border-t-4 border-indigo-600 shadow-xl">
+        <h3 class="label-mini text-indigo-600 mb-4 font-black italic">⚙️ Configurações do Dashboard</h3>
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+            <div><label class="label-mini">Meta de Faturamento</label><input type="number" id="goalFaturamento" placeholder="Ex: 50000" class="input-box"></div>
+            <div><label class="label-mini">Faturamento Real</label><input type="number" id="realFaturamento" placeholder="Ex: 12000" class="input-box"></div>
+            <div><label class="label-mini">Vendas Fechadas</label><input type="number" id="realVendas" placeholder="Ex: 10" class="input-box"></div>
+            <div><label class="label-mini">CPL Máximo Ideal</label><input type="number" id="targetCPL" placeholder="Ex: 5.00" class="input-box"></div>
+            <div><label class="label-mini">Nome do Cliente</label><input type="text" id="nichoInput" placeholder="Ex: Loja X" class="input-box"></div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-4 pt-4 border-t items-center">
+            <div class="flex flex-col">
+                <span class="label-mini">Base de Dados (CSV do Meta)</span>
+                <input type="file" id="csvFile" accept=".csv" class="text-xs font-bold text-slate-500">
+            </div>
+            <button onclick="window.print()" class="md:ml-auto bg-slate-900 text-white font-bold px-10 py-3 rounded-xl text-sm hover:bg-indigo-700 transition-all flex items-center gap-2">
+                <span>🖨️</span> GERAR RELATÓRIO PDF
+            </button>
+        </div>
+    </div>
+
+    <div id="dash" class="hidden">
+        <div class="glass-card p-10 mb-6 accent-border">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-900 tracking-tighter uppercase" id="headerNicho">ANÁLISE DE PERFORMANCE</h1>
+                    <p class="text-slate-500 font-medium italic flex items-center gap-2">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Auditoria Estratégica de Tráfego Pago
+                    </p>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center min-w-[180px]">
+                    <span id="vPorcentoMeta" class="text-5xl font-black text-indigo-600 tracking-tighter">0%</span>
+                    <p class="label-mini mt-1">Meta Alcançada</p>
+                </div>
+            </div>
+            <div class="progress-bar"><div id="vBarra" class="progress-fill" style="width: 0%"></div></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+            <div class="md:col-span-7 glass-card p-6 bg-indigo-50/20 border-indigo-100 border-2">
+                <h3 class="label-mini text-indigo-600 mb-4 font-black">🧭 Bússola de Previsibilidade e Escala</h3>
+                <div id="previsaoBox" class="grid grid-cols-2 gap-4">
+                    <p class="text-xs text-slate-400 italic col-span-2">Aguardando definição de meta para projetar escala...</p>
+                </div>
+            </div>
+            <div class="md:col-span-5 glass-card p-6 border-2 border-rose-50 bg-rose-50/20">
+                <h3 class="label-mini text-rose-600 mb-4 font-black">⚠️ Termômetro de Saúde da Conta</h3>
+                <div id="alertaBox" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="glass-card p-6 text-center">
+                <span class="label-mini">Investimento</span>
+                <p id="vGasto" class="text-2xl font-black text-slate-800">-</p>
+            </div>
+            <div class="glass-card p-6 text-center">
+                <span class="label-mini text-indigo-600">Total Leads</span>
+                <p id="vLeads" class="text-2xl font-black text-indigo-600">-</p>
+            </div>
+            <div class="glass-card p-6 text-center border-b-4 border-orange-400">
+                <span class="label-mini text-orange-600">CPL Médio</span>
+                <p id="vCPL" class="text-2xl font-black text-slate-800">-</p>
+            </div>
+            <div class="glass-card p-6 text-center border-b-4 border-emerald-400">
+                <span class="label-mini text-emerald-600">CTR (Criativo)</span>
+                <p id="vCTR" class="text-2xl font-black text-slate-800">-</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="glass-card p-8 border-l-[10px] border-indigo-600">
+                <h3 class="flex items-center gap-2 font-black text-slate-800 mb-6 text-xs uppercase tracking-widest">
+                    <span class="bg-indigo-600 text-white p-1 rounded">👥</span> Diagnóstico de Público-Alvo
+                </h3>
+                <div id="insightPublico" class="insight-box space-y-4 text-slate-600">
+                    </div>
+            </div>
+            <div class="glass-card p-8 border-l-[10px] border-emerald-600">
+                <h3 class="flex items-center gap-2 font-black text-slate-800 mb-6 text-xs uppercase tracking-widest">
+                    <span class="bg-emerald-600 text-white p-1 rounded">💰</span> Performance Comercial e Financeira
+                </h3>
+                <div id="insightComercial" class="insight-box space-y-4 text-slate-600">
+                    </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="glass-card p-8 bg-slate-900 text-white flex flex-col justify-center items-center">
+                <span class="label-mini text-slate-400">ROAS Atual</span>
+                <p id="vROAS" class="text-6xl font-black tracking-tighter">--</p>
+                <p class="text-[9px] text-slate-500 mt-2 uppercase font-bold italic">Métrica de eficiência financeira</p>
+            </div>
+            <div class="glass-card p-8 md:col-span-2">
+                <span class="label-mini text-slate-500 mb-4">Análise Crítica do Estrategista</span>
+                <textarea id="obsEstrategista" class="w-full bg-slate-50 p-4 rounded-xl text-sm h-24 no-print border-none focus:ring-2 focus:ring-indigo-100" placeholder="Digite aqui sua análise manual e próximos passos recomendados..."></textarea>
+                <div id="printObs" class="hidden print:block text-sm leading-relaxed whitespace-pre-wrap border-l-2 border-slate-200 pl-4 italic text-slate-700"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10">
+            <div class="lg:col-span-8 glass-card p-8">
+                <h4 class="label-mini mb-6">Detalhamento de Conversão por Idade</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="h-64"><canvas id="cAge"></canvas></div>
+                    <div id="tableAge" class="overflow-hidden"></div>
+                </div>
+            </div>
+            <div class="lg:col-span-4 glass-card p-8 flex flex-col items-center">
+                <h4 class="label-mini mb-6">Divisão por Gênero</h4>
+                <div class="h-64 w-full"><canvas id="cGen"></canvas></div>
+                <div class="mt-8 bg-slate-50 p-4 rounded-xl w-full border border-slate-100">
+                    <span class="label-mini mb-2">Nota de Gênero</span>
+                    <p id="insightGenText" class="text-xs text-slate-600 font-medium text-center"></p>
+                </div>
+            </div>
+        </div>
+        
+        <p class="text-[9px] text-center text-slate-400 font-black uppercase tracking-[0.3em] pb-10">Meta Intelligence Dashboard • Edição Premium Strategy v7.6</p>
+    </div>
+</div>
+
+<script>
+    const money = (v) => v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    let gd = {}; let chs = {};
+
+    function clean(v) {
+        if (!v) return 0;
+        let s = v.toString().replace("R$", "").trim();
+        if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+        else s = s.replace(',', '.');
+        return parseFloat(s) || 0;
+    }
+
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+        Papa.parse(e.target.files[0], {
+            header: true, skipEmptyLines: true,
+            complete: (res) => {
+                let tg = 0, tl = 0, tc = 0, ti = 0;
+                let idades = {}, idadesG = {}, gens = {};
+                res.data.forEach(r => {
+                    if (!r["Idade"] || r["Idade"].toLowerCase().includes("total")) return;
+                    const g = clean(r["Valor usado (BRL)"]), l = clean(r["Resultados"]), c = clean(r["Cliques no link"]), i = clean(r["Impressões"]);
+                    tg += g; tl += l; tc += c; ti += i;
+                    if(r["Idade"]) { idades[r["Idade"]] = (idades[r["Idade"]] || 0) + l; idadesG[r["Idade"]] = (idadesG[r["Idade"]] || 0) + g; }
+                    if(r["Gênero"]) { const gn = r["Gênero"] === 'female' ? 'Feminino' : 'Masculino'; gens[gn] = (gens[gn] || 0) + l; }
+                });
+                gd = { tg, tl, tc, ti, idades, idadesG, gens, cpl: tl > 0 ? tg/tl : 0, ctr: ti > 0 ? (tc/ti)*100 : 0 };
+                document.getElementById('dash').classList.remove('hidden');
+                update();
+            }
+        });
+    });
+
+    function update() {
+        if(!gd.tg) return;
+        const fat = parseFloat(document.getElementById('realFaturamento').value) || 0;
+        const meta = parseFloat(document.getElementById('goalFaturamento').value) || 0;
+        const vendas = parseFloat(document.getElementById('realVendas').value) || 0;
+        const targetCPL = parseFloat(document.getElementById('targetCPL').value) || 0;
+        const nicho = document.getElementById('nichoInput').value || "CLIENTE";
+
+        document.getElementById('headerNicho').innerText = `RELATÓRIO: ${nicho}`;
+        document.getElementById('vGasto').innerText = money(gd.tg);
+        document.getElementById('vLeads').innerText = gd.tl;
+        document.getElementById('vCPL').innerText = money(gd.cpl);
+        document.getElementById('vCTR').innerText = gd.ctr.toFixed(2) + "%";
+        
+        const roas = gd.tg > 0 ? fat / gd.tg : 0;
+        const conv = gd.tl > 0 ? (vendas / gd.tl) * 100 : 0;
+        document.getElementById('vROAS').innerText = roas.toFixed(1) + "x";
+
+        // PROGRESSO
+        const pct = meta > 0 ? Math.min((fat / meta) * 100, 100) : 0;
+        document.getElementById('vBarra').style.width = pct + "%";
+        document.getElementById('vPorcentoMeta').innerText = pct.toFixed(0) + "%";
+
+        // BÚSSOLA DE ESCALA (PREVISIBILIDADE COMPLETA)
+        if(meta > 0 && roas > 0) {
+            const ticketMedio = vendas > 0 ? fat / vendas : 0;
+            const invNec = meta / roas;
+            const leadsNec = Math.ceil(meta / ticketMedio / (conv/100));
+            document.getElementById('previsaoBox').innerHTML = `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-indigo-50">
+                    <span class="label-mini text-[9px]">Investimento p/ Meta</span>
+                    <p class="text-xl font-bold text-indigo-700">${money(invNec)}</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-indigo-50">
+                    <span class="label-mini text-[9px]">Leads p/ Meta</span>
+                    <p class="text-xl font-bold text-indigo-600">${leadsNec} contatos</p>
+                </div>
+                <p class="col-span-2 text-[10px] text-slate-400 font-semibold px-1 italic italic">
+                    * Projeção baseada no ticket médio de ${money(ticketMedio)} e conversão comercial de ${conv.toFixed(1)}%.
+                </p>
+            `;
+        }
+
+        // TERMÔMETRO DE CPL NO ALERTA
+        let alertas = "";
+        if(targetCPL > 0) {
+            const desvio = ((gd.cpl - targetCPL) / targetCPL) * 100;
+            if(gd.cpl <= targetCPL) {
+                alertas += `<div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 text-xs font-bold flex items-center gap-2">🟢 TERMÔMETRO: SAUDÁVEL. CPL atual (${money(gd.cpl)}) está dentro da meta estipulada.</div>`;
+            } else {
+                alertas += `<div class="p-3 bg-rose-50 text-rose-800 rounded-xl border border-rose-200 text-xs font-bold flex items-center gap-2">🔴 TERMÔMETRO: ALERTA. CPL está ${desvio.toFixed(0)}% acima do limite ideal.</div>`;
+            }
+        }
+        if(gd.ctr < 1) alertas += `<div class="p-3 bg-amber-50 text-amber-800 rounded-xl border border-amber-200 text-xs font-bold flex items-center gap-2">🚩 CRIATIVOS: BAIXA ATRAÇÃO. CTR abaixo de 1% indica que o público está ignorando os anúncios.</div>`;
+        document.getElementById('alertaBox').innerHTML = alertas || "<p class='text-xs italic text-slate-400'>Aguardando meta de CPL para diagnóstico...</p>";
+
+        // NOTAS COMPLETAS: PÚBLICO
+        const idadesSorted = Object.keys(gd.idades).sort((a,b) => gd.idades[b] - gd.idades[a]);
+        const bestAge = idadesSorted[0];
+        const cheapestAge = Object.keys(gd.idades).reduce((a, b) => (gd.idadesG[a]/gd.idades[a]) < (gd.idadesG[b]/gd.idades[b]) ? a : b);
+        
+        document.getElementById('insightPublico').innerHTML = `
+            <div class="border-b pb-3">
+                <p class="font-bold text-slate-800">🎯 Faixa Etária Dominante</p>
+                <p>O maior volume de conversão concentra-se em <b>${bestAge}</b>. Esta faixa é responsável pelo maior "fôlego" de leads da campanha.</p>
+            </div>
+            <div class="border-b pb-3">
+                <p class="font-bold text-slate-800">💸 Oportunidade de Custo</p>
+                <p>O público de <b>${cheapestAge}</b> apresenta o CPL mais barato. Recomendamos aumentar a distribuição de verba para este segmento visando baixar a média geral.</p>
+            </div>
+            <p class="text-[11px] italic">Análise baseada em ${gd.tl} leads gerados no período.</p>
+        `;
+
+        // NOTAS COMPLETAS: COMERCIAL
+        const breakEven = fat > 0 ? (gd.tg / fat) * 100 : 0;
+        document.getElementById('insightComercial').innerHTML = `
+            <div class="border-b pb-3">
+                <p class="font-bold text-slate-800">📊 Eficiência de Vendas</p>
+                <p>A equipe comercial precisa de <b>${Math.ceil(100/conv)} leads</b> para fechar 1 contrato. O custo de aquisição (CAC) atual é de <b>${money(gd.tg/vendas)}</b>.</p>
+            </div>
+            <div class="border-b pb-3">
+                <p class="font-bold text-slate-800">🛡️ Saúde Financeira</p>
+                <p>O tráfego consome atualmente <b>${breakEven.toFixed(1)}%</b> do faturamento bruto gerado. O ROAS de <b>${roas.toFixed(1)}x</b> indica uma operação lucrativa e pronta para escala.</p>
+            </div>
+        `;
+
+        // TABELA IDADE
+        let tb = `<table class="w-full text-left text-[11px]"><thead class="bg-slate-50"><tr><th class="p-2">Idade</th><th class="p-2 text-center">Leads</th><th class="p-2 text-right">Custo/Lead</th></tr></thead><tbody>`;
+        Object.keys(gd.idades).sort().forEach(a => {
+            const l = gd.idades[a]; const c = l > 0 ? gd.idadesG[a]/l : 0;
+            tb += `<tr class="border-b hover:bg-slate-50"><td class="p-2 font-bold">${a}</td><td class="p-2 text-center">${l}</td><td class="p-2 text-right text-indigo-600 font-bold">${money(c)}</td></tr>`;
+        });
+        document.getElementById('tableAge').innerHTML = tb + `</tbody></table>`;
+        
+        const bestGen = Object.keys(gd.gens).reduce((a, b) => gd.gens[a] > gd.gens[b] ? a : b);
+        document.getElementById('insightGenText').innerText = `Público ${bestGen} lidera o volume de mensagens iniciadas.`;
+        document.getElementById('printObs').innerText = document.getElementById('obsEstrategista').value;
+
+        render('cAge', Object.keys(gd.idades), Object.values(gd.idades), ['#4f46e5', '#818cf8', '#c7d2fe', '#e0e7ff', '#1e1b4b']);
+        render('cGen', Object.keys(gd.gens), Object.values(gd.gens), ['#ec4899', '#3b82f6']);
+    }
+
+    document.querySelectorAll('input, textarea').forEach(i => i.addEventListener('input', update));
+
+    function render(id, l, d, c) {
+        if(chs[id]) chs[id].destroy();
+        chs[id] = new Chart(document.getElementById(id).getContext('2d'), {
+            type: 'doughnut', data: { labels: l, datasets: [{ data: d, backgroundColor: c, borderWeight: 0, hoverOffset: 15 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9, weight: 'bold' } } } } }
+        });
+    }
+</script>
+</body>
+</html>
